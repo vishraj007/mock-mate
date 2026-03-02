@@ -36,8 +36,8 @@ export default function Loadermate() {
 
         {/* Loading text */}
         <p className="text-gray-400 text-lg mb-2">
-          Preparing your dashboard...
-        </p>
+          .....
+                  </p>
 
         {/* Loading dots animation */}
         <div className="flex justify-center gap-2">
