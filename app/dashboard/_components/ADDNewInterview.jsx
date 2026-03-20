@@ -11,25 +11,21 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { LoaderCircle, Plus } from "lucide-react";
+import { LoaderCircle, Plus, Briefcase, Sparkles } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { db } from "@/utils/db";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from "uuid";
 import { MockInterview } from "@/utils/schema";
 import { useRouter } from "next/navigation";
 
 function ADDNewInterview() {
   const [openDialog, setOpenDialog] = useState(false);
-
   const [jobRole, setJobRole] = useState("");
   const [jobDesc, setJobDesc] = useState("");
   const [experience, setExperience] = useState("");
-
   const [loading, setLoading] = useState(false);
-  const {user} = useUser();
+  const { user } = useUser();
   const router = useRouter();
-
-  // ✅ Store Gemini response as STRING (hidden)
   const [questionsJSON, setQuestionsJSON] = useState("");
 
   const isFormValid =
@@ -42,7 +38,6 @@ function ADDNewInterview() {
   const onSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       const inputPrompt =
         "Job Position: " + jobRole +
@@ -55,43 +50,30 @@ function ADDNewInterview() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: inputPrompt }),
       });
-
       const data = await res.json();
+      if (!data.success) throw new Error("Gemini failed");
 
-      if (!data.success) {
-        throw new Error("Gemini failed");
-      }
-
-      // ✅ Clean & save as string (NOT rendered)
       const cleanJsonString = data.data
-        .replace(/```json/gi, "")
-        .replace(/```/g, "")
-        .trim();
+        .replace(/```json/gi, "").replace(/```/g, "").trim();
 
-      setQuestionsJSON(cleanJsonString); // stored, but hidden
-      console.log("Saved Interview JSON (string):", cleanJsonString);
-      
-      if(cleanJsonString){
+      setQuestionsJSON(cleanJsonString);
+
+      if (cleanJsonString) {
         const resp = await db.insert(MockInterview).values({
-          jsonMockResp:cleanJsonString,
-          jobPostion:jobRole,
-          jobDesc:jobDesc,
-          jobExperience:experience,
-          createdBy:user?.primaryEmailAddress?.emailAddress ||"unknown",
-          createdAt:new Date().toISOString(),
-          mockId:uuidv4(),
-        }).returning({mockId:MockInterview.mockId});
-        console.log("Database Insert Response:",resp);
-    
-        if(resp){
+          jsonMockResp: cleanJsonString,
+          jobPostion: jobRole,
+          jobDesc: jobDesc,
+          jobExperience: experience,
+          createdBy: user?.primaryEmailAddress?.emailAddress || "unknown",
+          createdAt: new Date().toISOString(),
+          mockId: uuidv4(),
+        }).returning({ mockId: MockInterview.mockId });
+
+        if (resp) {
           setOpenDialog(false);
-          router.push('/dashboard/interview/'+resp[0].mockId);
+          router.push("/dashboard/interview/" + resp[0].mockId);
         }
       }
-      else{
-        console.log("some error in fetching data ")
-      } 
-
       setOpenDialog(false);
     } catch (error) {
       console.error("Error submitting interview:", error);
@@ -100,121 +82,235 @@ function ADDNewInterview() {
     }
   };
 
+  const inputStyle = {
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(255,255,255,0.1)",
+    borderRadius: 10,
+    color: "#f0faf6",
+    padding: "10px 14px",
+    width: "100%",
+    fontSize: "0.9rem",
+    fontFamily: "var(--font-dm-sans), sans-serif",
+    outline: "none",
+    transition: "border-color 0.2s, box-shadow 0.2s",
+    backdropFilter: "blur(8px)",
+  };
+
+  const labelStyle = {
+    display: "block",
+    fontFamily: "var(--font-syne), sans-serif",
+    fontSize: "0.82rem",
+    fontWeight: 600,
+    color: "#94a3b8",
+    marginBottom: 8,
+    letterSpacing: "0.02em",
+  };
+
   return (
     <>
-      {/* Add New Card - MockMate Theme */}
+      {/* Add New Card */}
       <div
         onClick={() => setOpenDialog(true)}
-        className="p-6 w-40 border border-zinc-800 rounded-xl bg-zinc-900/50 hover:bg-zinc-900/80 hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/20 hover:border-emerald-500/50 cursor-pointer transition-all duration-300"
+        style={{
+          width: "100%",
+          padding: "28px 20px",
+          borderRadius: 18,
+          backdropFilter: "blur(24px) saturate(180%)",
+          WebkitBackdropFilter: "blur(24px) saturate(180%)",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.09)",
+          boxShadow: "0 1px 0 rgba(255,255,255,0.06) inset, 0 20px 60px rgba(0,0,0,0.3)",
+          cursor: "pointer",
+          transition: "all 0.3s cubic-bezier(0.23,1,0.32,1)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 14,
+          textAlign: "center",
+        }}
+        onMouseEnter={e => {
+          e.currentTarget.style.transform = "translateY(-4px)";
+          e.currentTarget.style.borderColor = "rgba(52,211,153,0.3)";
+          e.currentTarget.style.boxShadow = "0 1px 0 rgba(255,255,255,0.06) inset, 0 32px 80px rgba(0,0,0,0.45), 0 0 40px rgba(52,211,153,0.08)";
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.transform = "translateY(0)";
+          e.currentTarget.style.borderColor = "rgba(255,255,255,0.09)";
+          e.currentTarget.style.boxShadow = "0 1px 0 rgba(255,255,255,0.06) inset, 0 20px 60px rgba(0,0,0,0.3)";
+        }}
       >
-        <div className="flex flex-col items-center gap-2">
-          <div className="w-12 h-12 bg-emerald-500/10 rounded-lg flex items-center justify-center">
-            <Plus className="w-6 h-6 text-emerald-400" />
+        <div style={{
+          width: 52, height: 52, borderRadius: 14,
+          background: "rgba(52,211,153,0.1)",
+          border: "1px solid rgba(52,211,153,0.22)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: "0 0 20px rgba(52,211,153,0.15)",
+        }}>
+          <Plus style={{ width: 22, height: 22, color: "#34d399" }} />
+        </div>
+        <div>
+          <div style={{
+            fontFamily: "var(--font-syne), sans-serif",
+            fontWeight: 700, fontSize: "0.95rem",
+            color: "#f0faf6", marginBottom: 4,
+          }}>
+            Add New
           </div>
-          <h2 className="font-semibold text-sm text-white text-center">Add New</h2>
+          <div style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 300 }}>
+            Start interview
+          </div>
         </div>
       </div>
 
-      {/* Dialog - MockMate Theme */}
+      {/* Glass Dialog */}
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-        <DialogContent className="sm:max-w-lg bg-zinc-900 border-zinc-800 text-white">
-          <DialogHeader>
-            <DialogTitle className="text-2xl text-white">
-              Tell us more about Job you are interviewing
-            </DialogTitle>
-            <DialogDescription className="text-gray-400">
-              Add details about job position, your skills and years of experience
+        <DialogContent
+          style={{
+            backdropFilter: "blur(32px) saturate(200%)",
+            WebkitBackdropFilter: "blur(32px) saturate(200%)",
+            background: "linear-gradient(145deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 22,
+            color: "#f0faf6",
+            boxShadow: "0 1px 0 rgba(255,255,255,0.08) inset, 0 40px 100px rgba(0,0,0,0.6)",
+            maxWidth: 520,
+          }}
+        >
+          {/* top shine */}
+          <div style={{
+            position: "absolute", top: 0, left: "15%", right: "15%", height: 1,
+            background: "linear-gradient(90deg, transparent, rgba(52,211,153,0.4), transparent)",
+            borderRadius: "0 0 4px 4px",
+          }} />
+
+          <DialogHeader style={{ marginBottom: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: 10,
+                background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.22)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <Briefcase style={{ width: 18, height: 18, color: "#34d399" }} />
+              </div>
+              <DialogTitle style={{
+                fontFamily: "var(--font-syne), sans-serif",
+                fontSize: "1.25rem", fontWeight: 800, letterSpacing: "-0.02em",
+                color: "#f0faf6",
+              }}>
+                New Mock Interview
+              </DialogTitle>
+            </div>
+            <DialogDescription style={{ color: "#8ba3b0", fontSize: "0.875rem", fontWeight: 300 }}>
+              Add your job details and let AI generate personalized interview questions
             </DialogDescription>
           </DialogHeader>
 
-          {/* Form */}
-          <form className="mt-6 space-y-5" onSubmit={onSubmit}>
+          <form style={{ display: "flex", flexDirection: "column", gap: 20 }} onSubmit={onSubmit}>
             {/* Job Role */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-300">
-                Job Position / Role name
-              </label>
-              <Input
+            <div>
+              <label style={labelStyle}>Job Position / Role</label>
+              <input
                 placeholder="Ex. Full Stack Developer"
                 value={jobRole}
                 required
-                onChange={(e) => setJobRole(e.target.value)}
-                className="bg-zinc-800 border-zinc-700 text-white placeholder:text-gray-500 focus:ring-emerald-500 focus:border-emerald-500"
+                onChange={e => setJobRole(e.target.value)}
+                style={inputStyle}
+                onFocus={e => { e.target.style.borderColor = "rgba(52,211,153,0.4)"; e.target.style.boxShadow = "0 0 0 3px rgba(52,211,153,0.08)"; }}
+                onBlur={e => { e.target.style.borderColor = "rgba(255,255,255,0.1)"; e.target.style.boxShadow = "none"; }}
               />
             </div>
 
             {/* Job Description */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-300">
-                Job Description / Tech Stack in short
-              </label>
-              <Textarea
+            <div>
+              <label style={labelStyle}>Tech Stack / Job Description</label>
+              <textarea
                 placeholder="Ex. React, Next.js, Node.js, PostgreSQL"
-                className="min-h-[100px] bg-zinc-800 border-zinc-700 text-white placeholder:text-gray-500 focus:ring-emerald-500 focus:border-emerald-500"
                 value={jobDesc}
                 required
-                onChange={(e) => setJobDesc(e.target.value)}
+                onChange={e => setJobDesc(e.target.value)}
+                rows={3}
+                style={{ ...inputStyle, resize: "none", minHeight: 90 }}
+                onFocus={e => { e.target.style.borderColor = "rgba(52,211,153,0.4)"; e.target.style.boxShadow = "0 0 0 3px rgba(52,211,153,0.08)"; }}
+                onBlur={e => { e.target.style.borderColor = "rgba(255,255,255,0.1)"; e.target.style.boxShadow = "none"; }}
               />
             </div>
 
             {/* Experience */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-300">
-                No of Year Experience
-              </label>
-              <Input
-                type="number"
-                min={0}
-                max={35}
+            <div>
+              <label style={labelStyle}>Years of Experience</label>
+              <input
+                type="number" min={0} max={35}
                 placeholder="Ex. 2"
                 value={experience}
                 required
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (
-                    value === "" ||
-                    (Number(value) >= 0 && Number(value) <= 35)
-                  ) {
-                    setExperience(value);
-                  }
+                onChange={e => {
+                  const v = e.target.value;
+                  if (v === "" || (Number(v) >= 0 && Number(v) <= 35)) setExperience(v);
                 }}
-                className="bg-zinc-800 border-zinc-700 text-white placeholder:text-gray-500 focus:ring-emerald-500 focus:border-emerald-500"
+                style={inputStyle}
+                onFocus={e => { e.target.style.borderColor = "rgba(52,211,153,0.4)"; e.target.style.boxShadow = "0 0 0 3px rgba(52,211,153,0.08)"; }}
+                onBlur={e => { e.target.style.borderColor = "rgba(255,255,255,0.1)"; e.target.style.boxShadow = "none"; }}
               />
-              <p className="text-xs text-gray-500">
-                Experience must be between 0 and 35 years
-              </p>
+              <p style={{ fontSize: "0.75rem", color: "#64748b", marginTop: 6 }}>0–35 years</p>
             </div>
 
             {/* Actions */}
-            <div className="flex justify-end gap-4 pt-4">
-              <Button
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, paddingTop: 8 }}>
+              <button
                 type="button"
-                variant="ghost"
                 onClick={() => setOpenDialog(false)}
                 disabled={loading}
-                className="bg-zinc-800 hover:bg-zinc-700 text-white"
+                style={{
+                  fontFamily: "var(--font-syne), sans-serif",
+                  fontWeight: 600, fontSize: "0.85rem",
+                  padding: "10px 22px", borderRadius: 10,
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  color: "#94a3b8", cursor: "pointer",
+                  transition: "all 0.2s",
+                }}
               >
                 Cancel
-              </Button>
+              </button>
 
-              <Button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={loading || !isFormValid}
-                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/50"
+                style={{
+                  fontFamily: "var(--font-syne), sans-serif",
+                  fontWeight: 700, fontSize: "0.85rem",
+                  padding: "10px 24px", borderRadius: 10,
+                  background: loading || !isFormValid
+                    ? "rgba(52,211,153,0.2)"
+                    : "linear-gradient(135deg, #34d399, #2dd4bf, #22d3ee)",
+                  border: "none",
+                  color: loading || !isFormValid ? "#64748b" : "#03070a",
+                  cursor: loading || !isFormValid ? "not-allowed" : "pointer",
+                  display: "flex", alignItems: "center", gap: 8,
+                  transition: "all 0.25s",
+                  boxShadow: !loading && isFormValid ? "0 8px 24px rgba(52,211,153,0.35)" : "none",
+                }}
               >
                 {loading ? (
-                  <div className="flex items-center gap-2">
-                    <LoaderCircle className="h-4 w-4 animate-spin" />
-                    <span>Generating from AI</span>
-                  </div>
+                  <>
+                    <LoaderCircle style={{ width: 15, height: 15, animation: "spin 1s linear infinite" }} />
+                    Generating...
+                  </>
                 ) : (
-                  "Start Interview"
+                  <>
+                    <Sparkles style={{ width: 15, height: 15 }} />
+                    Start Interview
+                  </>
                 )}
-              </Button>
+              </button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
     </>
   );
 }

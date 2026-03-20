@@ -1,11 +1,16 @@
-"use client"
+"use client";
 import React, { useState } from "react";
-import { Sparkles, LoaderCircle, Lightbulb } from "lucide-react";
+import { Sparkles, LoaderCircle, Lightbulb, Zap } from "lucide-react";
 import { db } from "@/utils/db";
 import { QuizInterview } from "@/utils/schema";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from "uuid";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+
+const POPULAR = [
+  "Data Structures", "Algorithms", "Operating Systems",
+  "DBMS", "Networks", "React", "Node.js", "System Design",
+];
 
 function QuizAi() {
   const [quizTopics, setQuizTopics] = useState("");
@@ -16,11 +21,9 @@ function QuizAi() {
   const onSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       const inputPrompt =
-        "Quiz topics: " +
-        quizTopics +
+        "Quiz topics: " + quizTopics +
         ". Based on this information, generate 10 interview questions (MCQ) with answers in JSON format.";
 
       const res = await fetch("/api/gemini", {
@@ -28,19 +31,11 @@ function QuizAi() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: inputPrompt }),
       });
-
       const data = await res.json();
-
-      if (!data.success) {
-        throw new Error("Gemini failed");
-      }
+      if (!data.success) throw new Error("Gemini failed");
 
       const cleanJsonString = data.data
-        .replace(/```json/gi, "")
-        .replace(/```/g, "")
-        .trim();
-
-      console.log(cleanJsonString);
+        .replace(/```json/gi, "").replace(/```/g, "").trim();
 
       if (cleanJsonString) {
         const resp = await db.insert(QuizInterview).values({
@@ -48,143 +43,236 @@ function QuizAi() {
           quiztopics: quizTopics,
           createdBy: user?.primaryEmailAddress?.emailAddress || "unknown",
           createdAt: new Date().toISOString(),
-          quizId: uuidv4()
-        }).returning({ quizId: QuizInterview.quizId })
-        console.log("Database Insert Response:", resp);
-        if (resp) {
-          router.push('/quiz/quiztest/' + resp[0].quizId);
-        }
-      }
+          quizId: uuidv4(),
+        }).returning({ quizId: QuizInterview.quizId });
 
+        if (resp) router.push("/quiz/quiztest/" + resp[0].quizId);
+      }
     } catch (error) {
-      console.error("Error submitting interview:", error);
+      console.error("Error:", error);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-black py-12 px-4">
-      {/* Grid Pattern Background */}
-      <div className="fixed inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-40 pointer-events-none"></div>
+    <div style={{
+      minHeight: "100vh",
+      background: "#03070a",
+      color: "#f0faf6",
+      fontFamily: "var(--font-dm-sans), sans-serif",
+      position: "relative",
+      overflowX: "hidden",
+    }}>
+      {/* BG */}
+      <div style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none", overflow: "hidden" }}>
+        <div style={{
+          position: "absolute", width: 700, height: 700, borderRadius: "50%",
+          top: -250, left: -200, filter: "blur(140px)",
+          background: "radial-gradient(circle,rgba(52,211,153,0.13),transparent 70%)",
+          animation: "blobDrift 20s ease-in-out infinite",
+        }} />
+        <div style={{
+          position: "absolute", width: 500, height: 500, borderRadius: "50%",
+          bottom: -100, right: -100, filter: "blur(140px)",
+          background: "radial-gradient(circle,rgba(34,211,238,0.10),transparent 70%)",
+          animation: "blobDrift 20s ease-in-out infinite",
+          animationDelay: "-8s",
+        }} />
+        <div style={{
+          position: "absolute", inset: 0,
+          backgroundImage: "linear-gradient(rgba(52,211,153,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(52,211,153,0.025) 1px,transparent 1px)",
+          backgroundSize: "72px 72px",
+          maskImage: "radial-gradient(ellipse 85% 85% at 50% 50%,black 20%,transparent 100%)",
+        }} />
+      </div>
 
-      {/* Gradient Orbs */}
-      <div className="fixed top-20 right-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="fixed bottom-20 left-1/4 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <style>{`
+        @keyframes blobDrift{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(50px,-40px) scale(1.06)}66%{transform:translate(-35px,50px) scale(0.96)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .quiz-topic-btn:hover { color: #34d399 !important; border-color: rgba(52,211,153,0.3) !important; background: rgba(52,211,153,0.08) !important; }
+      `}</style>
 
-      <div className="max-w-2xl mx-auto relative z-10">
+      <div style={{
+        position: "relative", zIndex: 1,
+        maxWidth: 640, margin: "0 auto",
+        padding: "80px 32px",
+      }}>
         {/* Header */}
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-full text-emerald-400 text-sm font-medium mb-4">
-            <Sparkles className="w-4 h-4" />
-            AI-Powered Quiz Generator
+        <div style={{ textAlign: "center", marginBottom: 48, animation: "fadeUp 0.5s both" }}>
+          <div style={{
+            display: "inline-flex", alignItems: "center", gap: 8,
+            padding: "6px 16px", borderRadius: 100,
+            background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.25)",
+            fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase",
+            color: "#34d399", marginBottom: 20,
+            fontFamily: "var(--font-syne), sans-serif",
+          }}>
+            <Sparkles style={{ width: 12, height: 12 }} />
+            AI Quiz Generator
           </div>
-          
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent mb-3">
+          <h1 style={{
+            fontFamily: "var(--font-syne), sans-serif",
+            fontWeight: 800, fontSize: "clamp(2rem,5vw,3rem)",
+            letterSpacing: "-0.04em", lineHeight: 1,
+            background: "linear-gradient(135deg,#34d399,#2dd4bf,#22d3ee)",
+            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
+            marginBottom: 14,
+          }}>
             Create Custom Quiz
           </h1>
-          
-          <p className="text-gray-400 text-lg">
-            Enter topics and let AI generate personalized quiz questions
+          <p style={{ color: "#8ba3b0", fontSize: "1rem", fontWeight: 300, lineHeight: 1.65 }}>
+            Enter topics and let Gemini AI generate personalized questions
           </p>
         </div>
 
-        {/* Form Card */}
-        <form onSubmit={onSubmit} className="bg-zinc-900/50 backdrop-blur-sm rounded-2xl border border-zinc-800 p-8 shadow-2xl">
-          
-          {/* Topics Input */}
-          <div className="space-y-3 mb-6">
-            <label htmlFor="quiz-topics" className="text-base font-semibold text-white flex items-center gap-2">
-              Quiz Topics
-              <span className="text-emerald-400">*</span>
-            </label>
-            
-            <p className="text-sm text-gray-400">
-              Enter topics separated by commas for your AI-generated quiz
-            </p>
-            
-            <textarea
-              id="quiz-topics"
-              placeholder="Example: Arrays, Strings, Docker, Kubernetes, System Design"
-              value={quizTopics}
-              onChange={(e) => setQuizTopics(e.target.value)}
-              required
-              rows={5}
-              className="w-full px-4 py-4 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all resize-none"
-            />
-          </div>
+        {/* Glass Form Card */}
+        <div style={{
+          backdropFilter: "blur(28px) saturate(200%)",
+          WebkitBackdropFilter: "blur(28px) saturate(200%)",
+          background: "linear-gradient(145deg, rgba(255,255,255,0.065) 0%, rgba(255,255,255,0.018) 100%)",
+          border: "1px solid rgba(255,255,255,0.1)",
+          borderRadius: 24,
+          padding: "40px 36px",
+          boxShadow: "0 1px 0 rgba(255,255,255,0.07) inset, 0 40px 100px rgba(0,0,0,0.4)",
+          position: "relative",
+          animation: "fadeUp 0.5s 0.1s both",
+        }}>
+          {/* top shine */}
+          <div style={{
+            position: "absolute", top: 0, left: "15%", right: "15%", height: 1,
+            background: "linear-gradient(90deg,transparent,rgba(52,211,153,0.4),transparent)",
+          }} />
 
-          {/* Info Box */}
-          <div className="bg-teal-500/5 border border-teal-500/30 rounded-xl p-5 mb-6">
-            <div className="flex items-start gap-3">
-              <Lightbulb className="w-5 h-5 text-teal-400 mt-0.5 flex-shrink-0" />
+          <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+            {/* Input */}
+            <div>
+              <label style={{
+                display: "block",
+                fontFamily: "var(--font-syne), sans-serif",
+                fontSize: "0.85rem", fontWeight: 700,
+                color: "#94a3b8", marginBottom: 10,
+                letterSpacing: "0.02em",
+              }}>
+                Quiz Topics <span style={{ color: "#34d399" }}>*</span>
+              </label>
+              <p style={{ fontSize: "0.8rem", color: "#64748b", marginBottom: 10, fontWeight: 300 }}>
+                Separate multiple topics with commas
+              </p>
+              <textarea
+                placeholder="Ex: Arrays, Strings, Docker, Kubernetes, System Design"
+                value={quizTopics}
+                onChange={e => setQuizTopics(e.target.value)}
+                required
+                rows={5}
+                style={{
+                  width: "100%", resize: "none",
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: 12, color: "#f0faf6",
+                  padding: "14px 16px",
+                  fontSize: "0.9rem",
+                  fontFamily: "var(--font-dm-sans), sans-serif",
+                  outline: "none",
+                  transition: "border-color 0.2s, box-shadow 0.2s",
+                  lineHeight: 1.6,
+                }}
+                onFocus={e => { e.target.style.borderColor = "rgba(52,211,153,0.4)"; e.target.style.boxShadow = "0 0 0 3px rgba(52,211,153,0.08)"; }}
+                onBlur={e => { e.target.style.borderColor = "rgba(255,255,255,0.1)"; e.target.style.boxShadow = "none"; }}
+              />
+            </div>
+
+            {/* Info box */}
+            <div style={{
+              background: "rgba(45,212,191,0.05)",
+              border: "1px solid rgba(45,212,191,0.2)",
+              borderRadius: 14, padding: "16px 18px",
+              display: "flex", gap: 12, alignItems: "flex-start",
+            }}>
+              <Lightbulb style={{ width: 18, height: 18, color: "#2dd4bf", flexShrink: 0, marginTop: 2 }} />
               <div>
-                <h3 className="font-semibold text-teal-400 mb-2 text-sm">
+                <div style={{
+                  fontFamily: "var(--font-syne), sans-serif",
+                  fontSize: "0.8rem", fontWeight: 700, color: "#2dd4bf", marginBottom: 8,
+                }}>
                   How it works
-                </h3>
-                <ul className="text-gray-300 text-sm space-y-1 leading-relaxed">
-                  <li>• AI will generate 10 MCQ questions based on your topics</li>
-                  <li>• Questions are tailored to test your knowledge</li>
-                  <li>• Get instant feedback on your answers</li>
-                  <li>• Track your performance and improve</li>
+                </div>
+                <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: 5 }}>
+                  {[
+                    "10 MCQ questions generated from your topics",
+                    "Questions tailored to test real knowledge",
+                    "Instant feedback on every answer",
+                    "Track your performance over time",
+                  ].map(t => (
+                    <li key={t} style={{ fontSize: "0.8rem", color: "#8ba3b0", fontWeight: 300, display: "flex", gap: 8 }}>
+                      <span style={{ color: "#2dd4bf" }}>→</span> {t}
+                    </li>
+                  ))}
                 </ul>
               </div>
             </div>
-          </div>
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={loading || !quizTopics.trim()}
-            className={`w-full py-4 rounded-xl font-semibold text-base transition-all duration-200 flex items-center justify-center gap-2 shadow-lg
-              ${loading || !quizTopics.trim()
-                ? "bg-zinc-800 text-gray-500 cursor-not-allowed"
-                : "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:scale-[1.02]"
-              }`}
-          >
-            {loading ? (
-              <>
-                <LoaderCircle className="w-5 h-5 animate-spin" />
-                Generating Quiz...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-5 h-5" />
-                Generate Quiz with AI
-              </>
-            )}
-          </button>
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={loading || !quizTopics.trim()}
+              style={{
+                width: "100%", padding: "14px",
+                borderRadius: 12, border: "none",
+                fontFamily: "var(--font-syne), sans-serif",
+                fontWeight: 700, fontSize: "0.95rem",
+                color: loading || !quizTopics.trim() ? "#64748b" : "#03070a",
+                background: loading || !quizTopics.trim()
+                  ? "rgba(255,255,255,0.05)"
+                  : "linear-gradient(135deg,#34d399,#2dd4bf,#22d3ee)",
+                cursor: loading || !quizTopics.trim() ? "not-allowed" : "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                transition: "all 0.25s",
+                boxShadow: !loading && quizTopics.trim() ? "0 8px 28px rgba(52,211,153,0.35)" : "none",
+              }}
+            >
+              {loading ? (
+                <><LoaderCircle style={{ width: 18, height: 18, animation: "spin 1s linear infinite" }} />Generating Quiz...</>
+              ) : (
+                <><Zap style={{ width: 18, height: 18 }} />Generate Quiz with AI</>
+              )}
+            </button>
+          </form>
 
-          {/* Example Topics */}
-          <div className="mt-6 pt-6 border-t border-zinc-800">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+          {/* Popular topics */}
+          <div style={{ marginTop: 28, paddingTop: 24, borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+            <p style={{
+              fontFamily: "var(--font-syne), sans-serif",
+              fontSize: "0.68rem", fontWeight: 700,
+              letterSpacing: "0.12em", textTransform: "uppercase",
+              color: "#475569", marginBottom: 12,
+            }}>
               Popular Topics
             </p>
-            <div className="flex flex-wrap gap-2">
-              {[
-                "Data Structures",
-                "Algorithms",
-                "Operating Systems",
-                "DBMS",
-                "Networks",
-                "React",
-                "Node.js",
-                "System Design"
-              ].map((topic) => (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {POPULAR.map(topic => (
                 <button
                   key={topic}
                   type="button"
-                  onClick={() => setQuizTopics(prev => 
-                    prev ? `${prev}, ${topic}` : topic
-                  )}
-                  className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-emerald-500/50 text-gray-300 hover:text-emerald-400 rounded-lg text-xs font-medium transition-all"
+                  className="quiz-topic-btn"
+                  onClick={() => setQuizTopics(p => p ? `${p}, ${topic}` : topic)}
+                  style={{
+                    padding: "6px 14px", borderRadius: 100,
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.09)",
+                    color: "#8ba3b0", cursor: "pointer",
+                    fontFamily: "var(--font-syne), sans-serif",
+                    fontSize: "0.75rem", fontWeight: 600,
+                    transition: "all 0.2s",
+                  }}
                 >
                   + {topic}
                 </button>
               ))}
             </div>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
