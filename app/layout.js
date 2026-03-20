@@ -1,23 +1,31 @@
-import { Inter } from "next/font/google";
+import { Syne, DM_Sans } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-import{
+import {
   ClerkProvider,
   SignInButton,
   SignUpButton,
   SignedIn,
   SignedOut,
   UserButton,
-} from '@clerk/nextjs'
+} from '@clerk/nextjs';
 
-import  {Loadermate} from "./loader";
-const inter = Inter({
+import { Loadermate } from "./loader";
+
+const syne = Syne({
   subsets: ["latin"],
-  variable: "--font-inter",
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-syne",
+  display: "swap",
 });
 
-
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  weight: ["300", "400", "500"],
+  variable: "--font-dm-sans",
+  display: "swap",
+});
 
 export const metadata = {
   title: "Mock Interview Platform",
@@ -27,15 +35,11 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-        <ClerkProvider>
-      <body
-       className={inter.variable}
-      >
-        <Toaster/>
-     
-  {children}
-
-      </body>
+      <ClerkProvider>
+        <body className={`${syne.variable} ${dmSans.variable}`}>
+          <Toaster />
+          {children}
+        </body>
       </ClerkProvider>
     </html>
   );
