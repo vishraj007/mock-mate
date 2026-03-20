@@ -13,24 +13,16 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { LoaderCircle, Plus } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
-import { db } from "@/utils/db";
-import { v4 as uuidv4 } from 'uuid';
-import { MockInterview } from "@/utils/schema";
 import { useRouter } from "next/navigation";
 
 function ADDNewInterview() {
   const [openDialog, setOpenDialog] = useState(false);
-
   const [jobRole, setJobRole] = useState("");
   const [jobDesc, setJobDesc] = useState("");
   const [experience, setExperience] = useState("");
-
   const [loading, setLoading] = useState(false);
-  const {user} = useUser();
+  const { user } = useUser();
   const router = useRouter();
-
-  // ✅ Store Gemini response as STRING (hidden)
-  const [questionsJSON, setQuestionsJSON] = useState("");
 
   const isFormValid =
     jobRole.trim() !== "" &&
@@ -44,6 +36,7 @@ function ADDNewInterview() {
     setLoading(true);
 
     try {
+      // Step 1: Get questions from Gemini
       const inputPrompt =
         "Job Position: " + jobRole +
         ", Job Description: " + jobDesc +
@@ -58,41 +51,39 @@ function ADDNewInterview() {
 
       const data = await res.json();
 
-      if (!data.success) {
-        throw new Error("Gemini failed");
-      }
+      if (!data.success) throw new Error("Gemini failed");
 
-      // ✅ Clean & save as string (NOT rendered)
       const cleanJsonString = data.data
         .replace(/```json/gi, "")
         .replace(/```/g, "")
         .trim();
 
-      setQuestionsJSON(cleanJsonString); // stored, but hidden
-      console.log("Saved Interview JSON (string):", cleanJsonString);
-      
-      if(cleanJsonString){
-        const resp = await db.insert(MockInterview).values({
-          jsonMockResp:cleanJsonString,
-          jobPostion:jobRole,
-          jobDesc:jobDesc,
-          jobExperience:experience,
-          createdBy:user?.primaryEmailAddress?.emailAddress ||"unknown",
-          createdAt:new Date().toISOString(),
-          mockId:uuidv4(),
-        }).returning({mockId:MockInterview.mockId});
-        console.log("Database Insert Response:",resp);
-    
-        if(resp){
-          setOpenDialog(false);
-          router.push('/dashboard/interview/'+resp[0].mockId);
-        }
+      if (!cleanJsonString) {
+        console.error("Empty response from Gemini");
+        return;
       }
-      else{
-        console.log("some error in fetching data ")
-      } 
 
-      setOpenDialog(false);
+      // Step 2: Save to database via API route
+      const dbRes = await fetch("/api/interview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobRole,
+          jobDesc,
+          experience,
+          email: user?.primaryEmailAddress?.emailAddress,
+          cleanJsonString,
+        }),
+      });
+
+      const dbData = await dbRes.json();
+
+      if (dbData.success && dbData.mockId) {
+        setOpenDialog(false);
+        router.push("/dashboard/interview/" + dbData.mockId);
+      } else {
+        console.error("DB insert failed:", dbData.error);
+      }
     } catch (error) {
       console.error("Error submitting interview:", error);
     } finally {
@@ -102,7 +93,6 @@ function ADDNewInterview() {
 
   return (
     <>
-      {/* Add New Card - MockMate Theme */}
       <div
         onClick={() => setOpenDialog(true)}
         className="p-6 w-40 border border-zinc-800 rounded-xl bg-zinc-900/50 hover:bg-zinc-900/80 hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/20 hover:border-emerald-500/50 cursor-pointer transition-all duration-300"
@@ -115,7 +105,6 @@ function ADDNewInterview() {
         </div>
       </div>
 
-      {/* Dialog - MockMate Theme */}
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
         <DialogContent className="sm:max-w-lg bg-zinc-900 border-zinc-800 text-white">
           <DialogHeader>
@@ -127,9 +116,7 @@ function ADDNewInterview() {
             </DialogDescription>
           </DialogHeader>
 
-          {/* Form */}
           <form className="mt-6 space-y-5" onSubmit={onSubmit}>
-            {/* Job Role */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-300">
                 Job Position / Role name
@@ -143,7 +130,6 @@ function ADDNewInterview() {
               />
             </div>
 
-            {/* Job Description */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-300">
                 Job Description / Tech Stack in short
@@ -157,7 +143,6 @@ function ADDNewInterview() {
               />
             </div>
 
-            {/* Experience */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-300">
                 No of Year Experience
@@ -171,10 +156,7 @@ function ADDNewInterview() {
                 required
                 onChange={(e) => {
                   const value = e.target.value;
-                  if (
-                    value === "" ||
-                    (Number(value) >= 0 && Number(value) <= 35)
-                  ) {
+                  if (value === "" || (Number(value) >= 0 && Number(value) <= 35)) {
                     setExperience(value);
                   }
                 }}
@@ -185,7 +167,6 @@ function ADDNewInterview() {
               </p>
             </div>
 
-            {/* Actions */}
             <div className="flex justify-end gap-4 pt-4">
               <Button
                 type="button"
@@ -197,8 +178,8 @@ function ADDNewInterview() {
                 Cancel
               </Button>
 
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 disabled={loading || !isFormValid}
                 className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/50"
               >
