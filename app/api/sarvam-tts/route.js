@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(req) {
   try {
-    const { text, speaker = "anushka" } = await req.json();
+    const { text, speaker = "priya" } = await req.json(); // ✅ changed from "anushka"
 
     if (!text) {
       return NextResponse.json(
@@ -34,7 +34,6 @@ export async function POST(req) {
     }
 
     const data = await response.json();
-
     const audioBase64 = data.audios?.[0] || "";
 
     return NextResponse.json({

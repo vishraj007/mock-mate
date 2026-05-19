@@ -64,12 +64,12 @@ export async function GET(req) {
   }
 }
 
-// POST - Create new voice interview & generate first question
+// POST - Create new voice interview & generate first question (or reset existing)
 export async function POST(req) {
   try {
-    const { jobPosition, jobDesc, jobExperience, email } = await req.json();
+    const { jobPosition, jobDesc, jobExperience, email, reset, mockId: existingMockId } = await req.json();
 
-    const mockId = uuidv4();
+    const mockId = reset && existingMockId ? existingMockId : uuidv4();
 
     // Generate first question using Groq
     const systemPrompt = `You are an expert technical interviewer. You are conducting a mock interview for the following position:
@@ -102,18 +102,32 @@ Your task:
       },
     ];
 
-    // Save to database
-    await db.insert(VoiceInterview).values({
-      mockId,
-      jobPosition,
-      jobDesc,
-      jobExperience,
-      conversationLog: JSON.stringify(conversationLog),
-      status: "in_progress",
-      flagCount: "0",
-      createdBy: email || "unknown",
-      createdAt: new Date().toISOString(),
-    });
+    if (reset && existingMockId) {
+      // Reset existing session — clear old conversation, feedback, and status
+      await db
+        .update(VoiceInterview)
+        .set({
+          conversationLog: JSON.stringify(conversationLog),
+          overallFeedback: null,
+          overallRating: null,
+          status: "in_progress",
+          flagCount: "0",
+        })
+        .where(eq(VoiceInterview.mockId, existingMockId));
+    } else {
+      // Save new session to database
+      await db.insert(VoiceInterview).values({
+        mockId,
+        jobPosition,
+        jobDesc,
+        jobExperience,
+        conversationLog: JSON.stringify(conversationLog),
+        status: "in_progress",
+        flagCount: "0",
+        createdBy: email || "unknown",
+        createdAt: new Date().toISOString(),
+      });
+    }
 
     return NextResponse.json({
       success: true,

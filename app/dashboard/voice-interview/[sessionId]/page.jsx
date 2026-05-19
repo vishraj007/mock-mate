@@ -64,11 +64,34 @@ function VoiceInterviewSession() {
       const data = await res.json();
       if (data.success) {
         setSessionData(data.session);
-        const log = JSON.parse(data.session.conversationLog || "[]");
-        setConversation(log);
-        if (log.length > 0) {
-          const lastAI = [...log].reverse().find((e) => e.role === "ai");
-          if (lastAI) setCurrentQuestionNumber(lastAI.questionNumber || 1);
+
+        // If the session was already completed, reset it for a fresh interview
+        if (data.session.status === "completed") {
+          const resetRes = await fetch("/api/voice-interview", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              mockId: sessionId,
+              reset: true,
+              jobPosition: data.session.jobPosition,
+              jobDesc: data.session.jobDesc,
+              jobExperience: data.session.jobExperience,
+              email: data.session.createdBy,
+            }),
+          });
+          const resetData = await resetRes.json();
+          if (resetData.success) {
+            const freshLog = resetData.conversationLog || [];
+            setConversation(freshLog);
+            setCurrentQuestionNumber(1);
+          }
+        } else {
+          const log = JSON.parse(data.session.conversationLog || "[]");
+          setConversation(log);
+          if (log.length > 0) {
+            const lastAI = [...log].reverse().find((e) => e.role === "ai");
+            if (lastAI) setCurrentQuestionNumber(lastAI.questionNumber || 1);
+          }
         }
         setLoading(false);
       }

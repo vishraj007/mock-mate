@@ -574,7 +574,7 @@ export default async function Home() {
                   title:"Webcam Simulation",
                   desc:"Full-screen video with live speech-to-text. Replay sessions and watch yourself exactly as an interviewer would." },
                 { n:"02", icon:<Brain/>, color:"rgba(45,212,191,0.2)", bg:"rgba(45,212,191,0.09)",
-                  title:"Gemini AI Feedback",
+                  title:"AI Feedback",
                   desc:"Per-answer scoring on clarity, depth, and confidence. Actionable improvement tips generated in seconds." },
                 { n:"03", icon:<Sparkles/>, color:"rgba(34,211,238,0.2)", bg:"rgba(34,211,238,0.09)",
                   title:"Personalized Questions",

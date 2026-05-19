@@ -26,13 +26,18 @@ function QuizAi() {
         "Quiz topics: " + quizTopics +
         ". Based on this information, generate 10 interview questions (MCQ) with answers in JSON format.";
 
-      const res = await fetch("/api/gemini", {
+      const res = await fetch("/api/groq", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: inputPrompt }),
+        body: JSON.stringify({
+          messages: [
+            { role: "system", content: "You are a quiz generator. Generate quiz questions in valid JSON format only." },
+            { role: "user", content: inputPrompt },
+          ],
+        }),
       });
       const data = await res.json();
-      if (!data.success) throw new Error("Gemini failed");
+      if (!data.success) throw new Error("AI generation failed");
 
       const cleanJsonString = data.data
         .replace(/```json/gi, "").replace(/```/g, "").trim();
@@ -123,7 +128,7 @@ function QuizAi() {
             Create Custom Quiz
           </h1>
           <p style={{ color: "#8ba3b0", fontSize: "1rem", fontWeight: 300, lineHeight: 1.65 }}>
-            Enter topics and let Gemini AI generate personalized questions
+            Enter topics and let AI generate personalized questions
           </p>
         </div>
 

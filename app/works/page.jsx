@@ -126,7 +126,7 @@ export default function HowItWorks() {
             {[
               { n: "01", color: "#34d399", icon: <Target style={{ width: 16, height: 16, color: "#34d399" }} />, title: "Enter Job Details", desc: "Provide your target job position, tech stack, and years of experience. Our AI uses this to generate personalized interview questions." },
               { n: "02", color: "#2dd4bf", icon: <Video style={{ width: 16, height: 16, color: "#2dd4bf" }} />, title: "Practice with AI Questions", desc: "Answer 5 AI-generated questions using your webcam and microphone. Speech-to-text captures your responses in real-time." },
-              { n: "03", color: "#22d3ee", icon: <BarChart3 style={{ width: 16, height: 16, color: "#22d3ee" }} />, title: "Get AI Feedback", desc: "Gemini AI evaluates each answer and provides detailed feedback with ratings, strengths, and improvement suggestions." },
+              { n: "03", color: "#22d3ee", icon: <BarChart3 style={{ width: 16, height: 16, color: "#22d3ee" }} />, title: "Get AI Feedback", desc: "AI evaluates each answer and provides detailed feedback with ratings, strengths, and improvement suggestions." },
               { n: "04", color: "#34d399", icon: <TrendingUp style={{ width: 16, height: 16, color: "#34d399" }} />, title: "Track Progress", desc: "Review comprehensive reports, track improvement over time, and identify areas needing more practice." },
             ].map(({ n, color, icon, title, desc }) => (
               <div key={n} className="glass-hover" style={{ ...glassCard, padding: "24px 28px", display: "flex", gap: 20, alignItems: "flex-start" }}>
@@ -164,7 +164,7 @@ export default function HowItWorks() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
             {[
               { icon: <MessageSquare style={{ width: 20, height: 20, color: "#34d399" }} />, bg: "rgba(52,211,153,0.08)", title: "Speech-to-Text", desc: "Advanced speech recognition captures your answers accurately in real-time." },
-              { icon: <Brain style={{ width: 20, height: 20, color: "#2dd4bf" }} />, bg: "rgba(45,212,191,0.08)", title: "Gemini AI Powered", desc: "Cutting-edge AI provides intelligent feedback and personalized suggestions." },
+              { icon: <Brain style={{ width: 20, height: 20, color: "#2dd4bf" }} />, bg: "rgba(45,212,191,0.08)", title: "AI Powered", desc: "Cutting-edge AI provides intelligent feedback and personalized suggestions." },
               { icon: <Clock style={{ width: 20, height: 20, color: "#22d3ee" }} />, bg: "rgba(34,211,238,0.08)", title: "Practice Anytime", desc: "24/7 access to unlimited mock interviews and quizzes at your convenience." },
               { icon: <BarChart3 style={{ width: 20, height: 20, color: "#34d399" }} />, bg: "rgba(52,211,153,0.08)", title: "Detailed Analytics", desc: "Comprehensive performance reports with strengths and improvement areas." },
               { icon: <Target style={{ width: 20, height: 20, color: "#2dd4bf" }} />, bg: "rgba(45,212,191,0.08)", title: "Personalized Content", desc: "Questions tailored to your specific role, experience, and tech stack." },
