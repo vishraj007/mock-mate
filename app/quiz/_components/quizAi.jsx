@@ -1,9 +1,6 @@
 "use client";
 import React, { useState } from "react";
 import { Sparkles, LoaderCircle, Lightbulb, Zap } from "lucide-react";
-import { db } from "@/utils/db";
-import { QuizInterview } from "@/utils/schema";
-import { v4 as uuidv4 } from "uuid";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 
@@ -24,14 +21,14 @@ function QuizAi() {
     try {
       const inputPrompt =
         "Quiz topics: " + quizTopics +
-        ". Based on this information, generate 10 interview questions (MCQ) with answers in JSON format.";
+        ". Based on this information, generate 10 interview questions (MCQ) with answers in JSON format. Each question should have: question (string), options (array of 4 strings), answer (string matching one of the options exactly). Return only a JSON array.";
 
       const res = await fetch("/api/groq", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: [
-            { role: "system", content: "You are a quiz generator. Generate quiz questions in valid JSON format only." },
+            { role: "system", content: "You are a quiz generator. Generate quiz questions in valid JSON format only. Return only a JSON array of objects, each with 'question' (string), 'options' (array of 4 strings), and 'answer' (string that exactly matches one of the options). Do not include any text outside the JSON array." },
             { role: "user", content: inputPrompt },
           ],
         }),
@@ -43,15 +40,21 @@ function QuizAi() {
         .replace(/```json/gi, "").replace(/```/g, "").trim();
 
       if (cleanJsonString) {
-        const resp = await db.insert(QuizInterview).values({
-          jsonQuizResp: cleanJsonString,
-          quiztopics: quizTopics,
-          createdBy: user?.primaryEmailAddress?.emailAddress || "unknown",
-          createdAt: new Date().toISOString(),
-          quizId: uuidv4(),
-        }).returning({ quizId: QuizInterview.quizId });
+        // Save to database via API route
+        const saveRes = await fetch("/api/quiz", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            quizTopics: quizTopics,
+            jsonQuizResp: cleanJsonString,
+            createdBy: user?.primaryEmailAddress?.emailAddress || "unknown",
+          }),
+        });
+        const saveData = await saveRes.json();
 
-        if (resp) router.push("/quiz/quiztest/" + resp[0].quizId);
+        if (!saveData.success) throw new Error(saveData.error || "Failed to save quiz");
+
+        router.push("/quiz/quiztest/" + saveData.quizId);
       }
     } catch (error) {
       console.error("Error:", error);

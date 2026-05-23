@@ -28,11 +28,13 @@ async function InterviewList() {
   let dbError = false;
 
   try {
-    interviewList = await db
-      .select()
-      .from(VoiceInterview)                              
-      .where(eq(VoiceInterview.createdBy, email))        
-      .orderBy(desc(VoiceInterview.id));                
+    interviewList = await withRetry(() =>
+      db
+        .select()
+        .from(VoiceInterview)
+        .where(eq(VoiceInterview.createdBy, email))
+        .orderBy(desc(VoiceInterview.id))
+    );
   } catch (error) {
     console.error("DB Error:", error?.cause?.message || error?.message);
     dbError = true;
