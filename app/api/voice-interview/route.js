@@ -3,30 +3,13 @@ import { db } from "@/utils/db";
 import { VoiceInterview } from "@/utils/schema";
 import { eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
+import { callGroqWithRetry } from "@/lib/llm-utils";
+import { evaluateAnswer, detectAnswerRelevance } from "@/lib/answer-evaluator";
+import { runEvaluationPipeline } from "@/lib/evaluation-pipeline";
 
-const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-
+// Backward-compatible wrapper for existing callGroq usage in POST/PUT
 async function callGroq(messages, temperature = 0.7, max_tokens = 1024) {
-  const response = await fetch(GROQ_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
-      messages,
-      temperature,
-      max_tokens,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Groq API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || "";
+  return callGroqWithRetry(messages, { temperature, max_tokens });
 }
 
 // GET - Fetch voice interview session
@@ -166,14 +149,22 @@ export async function PUT(req) {
     const session = sessions[0];
     const conversationLog = JSON.parse(session.conversationLog || "[]");
 
-    // Add user's answer to log
-    conversationLog.push({
+    // Quick relevance check (heuristic, no LLM call)
+    const relevanceFlag = detectAnswerRelevance(
+      conversationLog.filter((e) => e.role === "ai").pop()?.content || "",
+      userAnswer
+    );
+
+    // Add user's answer to log (evaluation will be attached after parallel call)
+    const userEntry = {
       role: "user",
       content: userAnswer,
       type: "answer",
       questionNumber: currentQuestionNumber,
+      flag: relevanceFlag,
       timestamp: new Date().toISOString(),
-    });
+    };
+    conversationLog.push(userEntry);
 
     // Count follow-ups for current question
     const followUpsForCurrentQ = conversationLog.filter(
@@ -221,7 +212,35 @@ Then on the next line, speak your response naturally.`;
       });
     }
 
-    const groqResponse = await callGroq(messages, 0.7, 512);
+    // Get the last AI question for evaluation context
+    const lastAIQuestion = [...conversationLog]
+      .reverse()
+      .find((e) => e.role === "ai" && e.type === "question")?.content || "";
+
+    const jobContext = {
+      jobPosition: session.jobPosition,
+      jobDesc: session.jobDesc,
+      jobExperience: session.jobExperience,
+    };
+
+    // Run next-question generation AND per-answer evaluation in PARALLEL
+    const [groqResult, evalResult] = await Promise.allSettled([
+      callGroq(messages, 0.7, 512),
+      evaluateAnswer(lastAIQuestion, userAnswer, jobContext),
+    ]);
+
+    // Attach per-answer evaluation to the user entry in conversation log
+    if (evalResult.status === "fulfilled") {
+      // Find the user entry we just pushed and attach evaluation
+      const userIdx = conversationLog.length - 1;
+      conversationLog[userIdx].evaluation = evalResult.value;
+    }
+
+    if (groqResult.status === "rejected") {
+      throw groqResult.reason;
+    }
+
+    const groqResponse = groqResult.value;
 
     // Parse the response to determine type
     let responseType = "next_question";
@@ -275,6 +294,8 @@ Then on the next line, speak your response naturally.`;
       questionNumber: isFollowUp ? currentQuestionNumber : nextQuestionNumber,
       isComplete,
       responseType,
+      // Include per-answer evaluation in response for frontend display
+      answerEvaluation: evalResult.status === "fulfilled" ? evalResult.value : null,
     });
   } catch (error) {
     console.error("Voice interview answer error:", error);
@@ -341,80 +362,14 @@ export async function PATCH(req) {
       });
     }
 
-    // Build conversation transcript for feedback - only include Q&A pairs
-    const transcript = conversationLog
-      .map(
-        (entry) =>
-          `${entry.role === "ai" ? "Interviewer" : "Candidate"}: ${entry.content}`
-      )
-      .join("\n\n");
+    // Run the multi-stage evaluation pipeline
+    const jobContext = {
+      jobPosition: session.jobPosition,
+      jobDesc: session.jobDesc,
+      jobExperience: session.jobExperience,
+    };
 
-    // Generate overall feedback
-    const feedbackPrompt = `You are an expert interviewer who just completed a mock interview. Analyze ONLY what the candidate actually said in their answers. Do NOT speculate or assume knowledge the candidate did not demonstrate.
-
-Job Position: ${session.jobPosition}
-Job Description: ${session.jobDesc}
-Candidate Experience: ${session.jobExperience} years
-Total questions asked: ${conversationLog.filter((e) => e.role === "ai" && e.type === "question").length}
-Total answers given: ${userAnswers.length}
-
-Conversation:
-${transcript}
-
-CRITICAL RULES:
-- Rate ONLY based on what the candidate actually said
-- If an answer was short or vague, rate it low
-- If a question was not answered, mark it as "Not answered" with rating 0
-- Strengths must be things the candidate actually demonstrated in their answers
-- Improvements must be based on gaps in their actual responses
-- Do NOT give credit for potential or opportunity — only for demonstrated knowledge
-
-Provide your feedback in the following JSON format ONLY (no other text):
-{
-  "overallRating": <number 1-10>,
-  "summary": "<2-3 sentence overall assessment based ONLY on actual answers>",
-  "strengths": ["<strength actually shown in answers>"],
-  "improvements": ["<specific weakness from their answers>"],
-  "questionBreakdown": [
-    {
-      "questionNumber": 1,
-      "topic": "<brief topic>",
-      "rating": <1-10 or 0 if not answered>,
-      "comment": "<comment on what was actually said, or 'Not answered' if skipped>"
-    }
-  ],
-  "tips": "<one specific actionable tip based on their weakest answer>"
-}`;
-
-    const feedbackResponse = await callGroq(
-      [
-        {
-          role: "system",
-          content:
-            "You are a strict but fair interview coach. Evaluate ONLY what was actually said. Never speculate or give credit for undemonstrated skills. Return ONLY valid JSON.",
-        },
-        { role: "user", content: feedbackPrompt },
-      ],
-      0.3,
-      1500
-    );
-
-    // Parse feedback JSON
-    let feedback;
-    try {
-      const cleaned = feedbackResponse.replace(/```json|```/g, "").trim();
-      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-      feedback = JSON.parse(jsonMatch[0]);
-    } catch {
-      feedback = {
-        overallRating: 5,
-        summary: feedbackResponse,
-        strengths: [],
-        improvements: [],
-        questionBreakdown: [],
-        tips: "",
-      };
-    }
+    const feedback = await runEvaluationPipeline(conversationLog, jobContext);
 
     // Update database
     await db

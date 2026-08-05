@@ -226,13 +226,34 @@ function VoiceInterviewSession() {
       const aiData = await aiRes.json();
 
       if (aiData.success) {
-        setConversation((prev) => [
-          ...prev,
-          {
-            role: "ai", content: aiData.nextQuestion, type: aiData.isComplete ? "closing" : "question",
-            questionNumber: aiData.questionNumber, isFollowUp: aiData.isFollowUp, timestamp: new Date().toISOString(),
-          },
-        ]);
+        // Attach per-answer evaluation to the user's answer in conversation
+        if (aiData.answerEvaluation) {
+          setConversation((prev) => {
+            const updated = [...prev];
+            // Find the last user entry and attach evaluation
+            for (let i = updated.length - 1; i >= 0; i--) {
+              if (updated[i].role === "user" && !updated[i].evaluation) {
+                updated[i] = { ...updated[i], evaluation: aiData.answerEvaluation };
+                break;
+              }
+            }
+            return [
+              ...updated,
+              {
+                role: "ai", content: aiData.nextQuestion, type: aiData.isComplete ? "closing" : "question",
+                questionNumber: aiData.questionNumber, isFollowUp: aiData.isFollowUp, timestamp: new Date().toISOString(),
+              },
+            ];
+          });
+        } else {
+          setConversation((prev) => [
+            ...prev,
+            {
+              role: "ai", content: aiData.nextQuestion, type: aiData.isComplete ? "closing" : "question",
+              questionNumber: aiData.questionNumber, isFollowUp: aiData.isFollowUp, timestamp: new Date().toISOString(),
+            },
+          ]);
+        }
 
         if (aiData.isComplete) {
           setIsComplete(true);
@@ -420,6 +441,22 @@ function VoiceInterviewSession() {
                     </span>
                     {entry.isFollowUp && (
                       <span className="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full font-medium">Follow-up</span>
+                    )}
+                    {/* Inline per-answer evaluation badge */}
+                    {entry.evaluation && (
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                        entry.evaluation.overallScore >= 7 ? "bg-emerald-500/20 text-emerald-400" :
+                        entry.evaluation.overallScore >= 4 ? "bg-amber-500/20 text-amber-400" :
+                        "bg-rose-500/20 text-rose-400"
+                      }`}>
+                        {entry.evaluation.overallScore}/10
+                      </span>
+                    )}
+                    {/* Answer quality flag */}
+                    {entry.flag && entry.flag !== "none" && (
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400">
+                        {entry.flag.replace("_", " ")}
+                      </span>
                     )}
                   </div>
                   <p className="text-sm leading-relaxed">{entry.content}</p>
